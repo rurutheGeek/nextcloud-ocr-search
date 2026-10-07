@@ -1,0 +1,15 @@
+# Everything the app archive does not need. The archive must contain only the
+# app itself; the OCR service and CI files live in this repository too.
+/node_modules
+/build
+/server
+/tests
+/src
+/.github
+/krankerl.toml
+/package.json
+/package-lock.json
+/phpunit.xml
+/.gitignore
+/.nextcloudignore
+/tools

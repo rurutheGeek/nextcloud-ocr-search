@@ -1,0 +1,28 @@
+{
+	"translations": {
+		"OCR Search": "OCR検索",
+		"Text in images": "画像内の文字",
+		"Text": "文字",
+		"Copy text": "文字をコピー",
+		"Copied": "コピーしました",
+		"Waiting for recognition": "認識待ち",
+		"Recognition failed": "認識に失敗しました",
+		"Not indexed": "索引の対象外です",
+		"No text found": "文字は見つかりませんでした",
+		"Could not load the text": "文字を読み込めません",
+		"Saved. The OCR service answered.": "保存しました。OCRサービスが応答しました。",
+		"Saved. The OCR service did not answer.": "保存しました。OCRサービスが応答しません。",
+		"Saved. The service URL or the token is missing.": "保存しました。サービスのURLかトークンが未設定です。",
+		"Recognised: %1$s · Waiting: %2$s · Failed: %3$s · Skipped: %4$s": "認識済み: %1$s · 待機: %2$s · 失敗: %3$s · 対象外: %4$s",
+		"Service URL": "サービスのURL",
+		"Service token": "サービスのトークン",
+		"stored — leave empty to keep": "保存済み（空欄なら変更しません）",
+		"Remove the stored token": "保存済みのトークンを削除する",
+		"Longest side sent to recognition (pixels)": "認識に使う長辺（ピクセル）",
+		"Image types": "画像の種類",
+		"Smallest file (bytes)": "最小ファイルサイズ（バイト）",
+		"Largest file (bytes)": "最大ファイルサイズ（バイト）",
+		"Save": "保存"
+	},
+	"pluralForm": "nplurals=1; plural=0;"
+}

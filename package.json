@@ -1,0 +1,19 @@
+{
+	"name": "ocr_search",
+	"version": "0.1.0",
+	"private": true,
+	"description": "Nextcloud app that makes the text inside images searchable",
+	"license": "AGPL-3.0-or-later",
+	"scripts": {
+		"build": "node tools/l10n.mjs && esbuild src/sidebar.js --bundle --format=iife --target=es2020 --alias:path=./src/shims/path.js --alias:string_decoder=./src/shims/string_decoder.js --outfile=js/ocr_search.js"
+	},
+	"dependencies": {
+		"@nextcloud/axios": "^2.5.2",
+		"@nextcloud/files": "^4.0.0",
+		"@nextcloud/l10n": "^3.2.0",
+		"@nextcloud/router": "^3.0.1"
+	},
+	"devDependencies": {
+		"esbuild": "^0.25.0"
+	}
+}

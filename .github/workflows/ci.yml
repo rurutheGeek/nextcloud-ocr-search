@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  app:
+    name: Nextcloud app
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: The committed bundle and translations must match the source
+        run: git diff --exit-code js/ l10n/
+      - name: XML schema sanity (well-formed)
+        run: python3 -c "import xml.etree.ElementTree as ET; ET.parse('appinfo/info.xml')"
+      - name: PHP lint and tests inside Nextcloud 33
+        run: docker run --rm -v "$PWD":/app:ro nextcloud:33-apache sh /app/tests/run.sh
+
+  server:
+    name: OCR service
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install pillow numpy ruff
+      - run: ruff check server/
+      - name: Unit tests
+        run: python3 -m unittest discover -s server/tests -v
+      - name: Build the container
+        run: docker build -t ocr-search-service:ci server/
+      - name: The container answers without network access
+        run: |
+          docker run -d --name ocr --network none --read-only --tmpfs /tmp -e OCR_TOKEN=ci ocr-search-service:ci
+          for _ in $(seq 30); do
+            [ "$(docker inspect ocr --format '{{.State.Health.Status}}')" = healthy ] && exit 0
+            sleep 2
+          done
+          docker logs ocr
+          exit 1

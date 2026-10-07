@@ -1,0 +1,85 @@
+<?xml version="1.0"?>
+<info xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:noNamespaceSchemaLocation="https://apps.nextcloud.com/schema/apps/info.xsd">
+	<id>ocr_search</id>
+	<name>OCR Search</name>
+	<name lang="ja">OCR検索</name>
+	<summary>Find images by the text inside them</summary>
+	<summary lang="ja">画像の中の文字で画像を探す</summary>
+	<description lang="en"><![CDATA[
+Makes the text inside your images searchable from the unified search:
+receipts, recipes, screenshots, photos of signs and notes.
+
+Images are recognised by a small OCR service that runs next to Nextcloud
+(PP-OCRv5 through ONNX Runtime, CPU only, under 1 GiB of memory). New and
+changed images are indexed automatically by the background job; existing
+images are indexed with `occ ocr_search:index` and `occ ocr_search:process`,
+which can be scheduled at night and limited in runtime. The recognised text is
+shown in a tab of the file sidebar and can be copied.
+
+Search results only contain files the searching user can access. Uploading and
+viewing keep working when the OCR service is down; images simply wait in the
+queue.
+
+The OCR service ships in the `server/` directory of this app's repository,
+with a `compose.yaml`. Its URL and shared token are configured by an
+administrator under *Administration settings → OCR Search*.
+
+Requirements:
+- Nextcloud 33 or newer, background jobs run by cron
+- The OCR service reachable from the Nextcloud server (see `server/`)
+
+Privacy: every image that is indexed is sent to the OCR service URL configured
+by the administrator. No other data is transmitted.
+]]></description>
+	<description lang="ja"><![CDATA[
+画像の中の文字を統合検索から探せるようにします。レシート、レシピ、
+スクリーンショット、看板やメモの写真などが対象です。
+
+認識はNextcloudの隣で動く小さなOCRサービスが行います（PP-OCRv5／ONNX
+Runtime、CPUのみ、メモリ1GiB未満）。新しい画像と更新された画像はバック
+グラウンドジョブが自動で索引します。既存の画像は `occ ocr_search:index` と
+`occ ocr_search:process` で索引でき、夜間に実行したり実行時間を制限したり
+できます。認識した文字はファイルのサイドバーのタブに表示され、コピーできます。
+
+検索結果に出るのは、検索した利用者がアクセスできるファイルだけです。OCR
+サービスが止まっていてもアップロードと閲覧は影響を受けず、画像はキューで
+待機します。
+
+OCRサービスはこのアプリのリポジトリの `server/` に `compose.yaml` 付きで
+入っています。URLと共有トークンは管理者が *管理設定 → OCR検索* で設定します。
+
+必要なもの:
+- Nextcloud 33 以降（バックグラウンドジョブはcron）
+- Nextcloudサーバーから到達できるOCRサービス（`server/` を参照）
+
+プライバシー: 索引する画像は、管理者が設定したOCRサービスのURLへ送信されます。
+それ以外のデータは送信しません。
+]]></description>
+	<version>0.1.0</version>
+	<licence>AGPL-3.0-or-later</licence>
+	<author>rurutheGeek</author>
+	<namespace>OcrSearch</namespace>
+	<category>files</category>
+	<category>search</category>
+	<website>https://github.com/rurutheGeek/nextcloud-ocr-search</website>
+	<bugs>https://github.com/rurutheGeek/nextcloud-ocr-search/issues</bugs>
+	<repository>https://github.com/rurutheGeek/nextcloud-ocr-search</repository>
+	<dependencies>
+		<php min-version="8.1"/>
+		<nextcloud min-version="33" max-version="36"/>
+	</dependencies>
+	<background-jobs>
+		<job>OCA\OcrSearch\BackgroundJob\ProcessQueue</job>
+	</background-jobs>
+	<commands>
+		<command>OCA\OcrSearch\Command\Index</command>
+		<command>OCA\OcrSearch\Command\Process</command>
+		<command>OCA\OcrSearch\Command\Status</command>
+		<command>OCA\OcrSearch\Command\RetryFailed</command>
+	</commands>
+	<settings>
+		<admin>OCA\OcrSearch\Settings\Admin</admin>
+		<admin-section>OCA\OcrSearch\Settings\AdminSection</admin-section>
+	</settings>
+</info>
