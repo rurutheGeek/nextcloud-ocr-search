@@ -2,6 +2,7 @@
 import importlib.util
 import io
 import json
+import socket
 import tempfile
 import threading
 import time
@@ -168,7 +169,15 @@ class HttpTests(ServiceCase):
         sock.close()
 
     def test_oversized_body_is_413(self):
-        self.assertEqual(self.post(b'0' * 1_000_001)[0], 413)
+        # The service answers from the declared length without reading the
+        # body, so only the headers are sent here: a client that is still
+        # writing a large body would see a broken pipe instead of the answer.
+        sock = socket.create_connection(self.server.server_address)
+        sock.sendall(b'POST /v1/ocr HTTP/1.1\r\nHost: x\r\n'
+                     b'Authorization: Bearer ' + TOKEN.encode() +
+                     b'\r\nContent-Length: 1000001\r\n\r\n')
+        self.assertIn(b' 413 ', sock.recv(4096).split(b'\r\n')[0])
+        sock.close()
 
     def test_garbage_bytes_are_422(self):
         status, body, _ = self.post(b'definitely not an image')
