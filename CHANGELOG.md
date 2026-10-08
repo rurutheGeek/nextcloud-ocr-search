@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.0
+
+- First release in the Nextcloud App Store.
+- The OCR service token is stored as a sensitive value.
+- `occ ocr_search:clear --yes` deletes the index.
+- The OCR service image is published on GHCR.
+- Tested on Nextcloud 33 to 35 and on SQLite, MariaDB and PostgreSQL.
+
 ## 0.1.1
 
 - Search ignores whitespace and punctuation, so a phrase copied from the

@@ -1,6 +1,6 @@
 {
 	"name": "ocr_search",
-	"version": "0.1.1",
+	"version": "1.0.0",
 	"private": true,
 	"description": "Nextcloud app that makes the text inside images searchable",
 	"license": "AGPL-3.0-or-later",

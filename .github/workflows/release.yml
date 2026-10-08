@@ -62,6 +62,7 @@ jobs:
             --exclude='./tools' \
             --exclude='./server' \
             --exclude='./tests' \
+            --exclude='./screenshots' \
             --exclude='./src' \
             --exclude='./package.json' \
             --exclude='./package-lock.json' \
@@ -73,7 +74,7 @@ jobs:
             --exclude='./.git' \
             --transform "s,^\.,${APP_ID}," \
             -czf "build/artifacts/${APP_ID}.tar.gz" .
-          if tar tzf "build/artifacts/${APP_ID}.tar.gz" | grep -E "^${APP_ID}/(build|tools|server|tests|src|node_modules)/"; then
+          if tar tzf "build/artifacts/${APP_ID}.tar.gz" | grep -E "^${APP_ID}/(build|tools|server|tests|src|screenshots|node_modules)/"; then
             echo "::error::the archive contains files that do not belong to the app"
             exit 1
           fi
@@ -137,4 +138,32 @@ jobs:
           if [ "$status" != 201 ] && [ "$status" != 200 ]; then
             echo "::error::App Store answered HTTP $status"
             exit 1
+          fi
+
+  image:
+    name: OCR service image
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Build and push the OCR service image
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          image="ghcr.io/$(echo "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')-service"
+          version="${GITHUB_REF_NAME#v}"
+          echo "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker build \
+            --label "org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY" \
+            --label "org.opencontainers.image.version=$version" \
+            --label "org.opencontainers.image.licenses=AGPL-3.0-or-later" \
+            -t "$image:$version" server/
+          docker push "$image:$version"
+          if [ "${{ github.event.release.prerelease }}" != true ]; then
+            docker tag "$image:$version" "$image:latest"
+            docker push "$image:latest"
           fi

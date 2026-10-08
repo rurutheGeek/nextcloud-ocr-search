@@ -147,6 +147,11 @@ class IndexStore {
 			->executeStatement();
 	}
 
+	/** Removes the whole index and queue. */
+	public function clear(): int {
+		return $this->db->getQueryBuilder()->delete(self::TABLE)->executeStatement();
+	}
+
 	/** Removes rows whose file no longer exists. */
 	public function purgeOrphans(): int {
 		$files = $this->db->getQueryBuilder();

@@ -3,8 +3,9 @@
 #
 #   docker run --rm -v "$PWD":/app:ro nextcloud:33-apache sh /app/tests/run.sh
 #
-# The container installs Nextcloud on SQLite in its own file system, so nothing
-# outside the container is touched.
+# The container installs Nextcloud in its own file system, so nothing outside
+# the container is touched. SQLite is used unless DB=mysql or DB=pgsql names a
+# database server at DB_HOST (user, password and database: nextcloud).
 set -eu
 NC=/usr/src/nextcloud
 PHPUNIT_VERSION="${PHPUNIT_VERSION:-11.5.46}"
@@ -17,7 +18,12 @@ curl -fsSL -o /usr/local/bin/phpunit "https://phar.phpunit.de/phpunit-${PHPUNIT_
 chmod +x /usr/local/bin/phpunit
 
 run() { su www-data -s /bin/sh -c "cd $NC && $*"; }
-run "php occ maintenance:install --database sqlite --admin-user admin --admin-pass 'Test-admin-9351' --data-dir $NC/data" >/dev/null
+DB="${DB:-sqlite}"
+database="--database $DB"
+if [ "$DB" != sqlite ]; then
+	database="$database --database-host ${DB_HOST:-db} --database-name nextcloud --database-user nextcloud --database-pass nextcloud"
+fi
+run "php occ maintenance:install $database --admin-user admin --admin-pass 'Test-admin-9351' --data-dir $NC/data" >/dev/null
 run "php occ app:enable ocr_search"
 run "php occ ocr_search:status"
 run "find apps/ocr_search/appinfo apps/ocr_search/lib apps/ocr_search/templates apps/ocr_search/tests -name '*.php' -print0 | xargs -0 -n1 php -l" | grep -v '^No syntax errors' || true

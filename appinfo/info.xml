@@ -8,7 +8,7 @@
 	<summary lang="ja">画像の中の文字で画像を探す</summary>
 	<description lang="en"><![CDATA[
 Makes the text inside your images searchable from the unified search:
-receipts, recipes, screenshots, photos of signs and notes.
+screenshots first of all, and also photos of notes, signs and documents.
 
 Images are recognised by a small OCR service that runs next to Nextcloud
 (PP-OCRv5 through ONNX Runtime, CPU only, under 1 GiB of memory). New and
@@ -33,8 +33,8 @@ Privacy: every image that is indexed is sent to the OCR service URL configured
 by the administrator. No other data is transmitted.
 ]]></description>
 	<description lang="ja"><![CDATA[
-画像の中の文字を統合検索から探せるようにします。レシート、レシピ、
-スクリーンショット、看板やメモの写真などが対象です。
+画像の中の文字を統合検索から探せるようにします。主な対象はスクリーン
+ショットで、メモ・看板・書類の写真も探せます。
 
 認識はNextcloudの隣で動く小さなOCRサービスが行います（PP-OCRv5／ONNX
 Runtime、CPUのみ、メモリ1GiB未満）。新しい画像と更新された画像はバック
@@ -56,7 +56,7 @@ OCRサービスはこのアプリのリポジトリの `server/` に `compose.ya
 プライバシー: 索引する画像は、管理者が設定したOCRサービスのURLへ送信されます。
 それ以外のデータは送信しません。
 ]]></description>
-	<version>0.1.1</version>
+	<version>1.0.0</version>
 	<licence>AGPL-3.0-or-later</licence>
 	<author>rurutheGeek</author>
 	<namespace>OcrSearch</namespace>
@@ -72,6 +72,7 @@ OCRサービスはこのアプリのリポジトリの `server/` に `compose.ya
 	<repair-steps>
 		<post-migration>
 			<step>OCA\OcrSearch\Migration\Renormalize</step>
+			<step>OCA\OcrSearch\Migration\ProtectToken</step>
 		</post-migration>
 	</repair-steps>
 	<background-jobs>
@@ -82,6 +83,7 @@ OCRサービスはこのアプリのリポジトリの `server/` に `compose.ya
 		<command>OCA\OcrSearch\Command\Process</command>
 		<command>OCA\OcrSearch\Command\Status</command>
 		<command>OCA\OcrSearch\Command\RetryFailed</command>
+		<command>OCA\OcrSearch\Command\Clear</command>
 	</commands>
 	<settings>
 		<admin>OCA\OcrSearch\Settings\Admin</admin>

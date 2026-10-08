@@ -1,7 +1,9 @@
 services:
   ocr:
+    # Released images are published on GHCR; `docker compose up --build` builds
+    # the same image from this directory instead.
+    image: ghcr.io/ruruthegeek/nextcloud-ocr-search-service:latest
     build: .
-    image: ocr-search-service:latest
     env_file: .env
     ports:
       - "${OCR_PUBLISH:-127.0.0.1:8080}:8080"

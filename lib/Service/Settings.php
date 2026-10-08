@@ -53,7 +53,17 @@ class Settings {
 	}
 
 	public function set(string $key, string $value): void {
-		$this->config->setValueString(Application::APP_ID, $key, $value);
+		$this->config->setValueString(Application::APP_ID, $key, $value, sensitive: $key === 'ocr_token');
+	}
+
+	/**
+	 * Marks a token that was stored with `occ config:app:set` as sensitive,
+	 * so that it is encrypted and left out of `occ config:list`.
+	 */
+	public function protectToken(): bool {
+		return $this->config->hasKey(Application::APP_ID, 'ocr_token')
+			&& !$this->config->isSensitive(Application::APP_ID, 'ocr_token')
+			&& $this->config->updateSensitive(Application::APP_ID, 'ocr_token', true);
 	}
 
 	public function delete(string $key): void {

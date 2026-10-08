@@ -1,7 +1,7 @@
 # OCR Search for Nextcloud
 
-Find images by the text inside them — receipts, recipes, screenshots, photos
-of signs and notes — from the Nextcloud unified search.
+Find images by the text inside them — screenshots first of all, and also
+photos of notes, signs and documents — from the Nextcloud unified search.
 
 This repository contains two parts that belong together:
 
@@ -49,7 +49,7 @@ unloaded on idle.
 ```bash
 cd server
 cp .env.example .env    # set OCR_TOKEN
-docker compose up -d --build
+docker compose up -d    # pulls ghcr.io/ruruthegeek/nextcloud-ocr-search-service; add --build to build it here
 curl http://127.0.0.1:8080/healthz
 ```
 
@@ -58,7 +58,8 @@ settings.
 
 ### 2. Install the app
 
-From the [releases page](../../releases):
+From the [Nextcloud App Store](https://apps.nextcloud.com/apps/ocr_search)
+(search for *OCR Search*), or from the [releases page](../../releases):
 
 ```bash
 tar -xzf ocr_search.tar.gz -C /var/www/html/custom_apps/
@@ -107,6 +108,16 @@ untouched.
 A file is retried up to five times (after 5 min, 20 min, 80 min, 5 h 20 min)
 when the service rejects it, then marked as failed.
 
+### Searching
+
+Use the magnifier in the top bar (the unified search); results appear under
+**Text in images**. In the Files app, press **Search everywhere** next to the
+input in the top bar to open it. The search field in the left navigation of
+the Files app is a different feature: it only matches file names.
+
+Words separated by spaces must all be present. Whitespace, line breaks and
+punctuation are ignored.
+
 ### Excluding folders
 
 Put an empty file named `.noocr` into a folder to keep that folder and
@@ -115,6 +126,15 @@ everything below it out of the index.
 ## Copying recognised text
 
 Open the sidebar of an image in the Files app and choose the **Text** tab.
+
+## Removing the app
+
+Disabling or removing the app keeps the index, so enabling it again does not
+recognise everything a second time. To delete the recognised text first:
+
+```bash
+occ ocr_search:clear --yes
+```
 
 ## Development
 
@@ -130,8 +150,8 @@ AGPL-3.0-or-later
 
 ## 日本語の概要
 
-Nextcloudの統合検索から、画像の中の文字（レシート、レシピ、スクリーンショット
-など）で画像を探せるようにするアプリです。認識は `server/` のOCRサービス
+Nextcloudの統合検索（画面右上の虫めがね）から、画像の中の文字で画像を探せる
+ようにするアプリです。主な対象はスクリーンショットです。認識は `server/` のOCRサービス
 （PP-OCRv5 mobile／ONNX Runtime、CPUのみ、メモリ1GiB未満）が行います。
 
 - 新規・更新画像はバックグラウンドジョブが自動で索引します。

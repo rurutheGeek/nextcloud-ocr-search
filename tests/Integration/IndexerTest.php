@@ -90,6 +90,36 @@ class IndexerTest extends AppTestCase {
 		$this->assertSame('おいおい毎年', $this->store->get($file->getId())['normalized']);
 	}
 
+	public function testTokenIsStoredAsSensitive(): void {
+		$config = Server::get(\OCP\IAppConfig::class);
+		$settings = Server::get(\OCA\OcrSearch\Service\Settings::class);
+		try {
+			// As `occ config:app:set` without --sensitive leaves it.
+			$config->deleteKey('ocr_search', 'ocr_token');
+			$config->setValueString('ocr_search', 'ocr_token', 'plain-token');
+			$this->assertFalse($config->isSensitive('ocr_search', 'ocr_token'));
+			Server::get(\OCA\OcrSearch\Migration\ProtectToken::class)->run($this->createMock(\OCP\Migration\IOutput::class));
+			$this->assertTrue($config->isSensitive('ocr_search', 'ocr_token'));
+			$this->assertSame('plain-token', $settings->token());
+
+			$config->deleteKey('ocr_search', 'ocr_token');
+			$settings->set('ocr_token', 'from-the-settings-page');
+			$this->assertTrue($config->isSensitive('ocr_search', 'ocr_token'));
+			$this->assertSame('from-the-settings-page', $settings->token());
+		} finally {
+			$config->deleteKey('ocr_search', 'ocr_token');
+		}
+	}
+
+	public function testClearNeedsConfirmationAndEmptiesTheIndex(): void {
+		$this->image('alice', 'clear');
+		$command = new \Symfony\Component\Console\Tester\CommandTester(Server::get(\OCA\OcrSearch\Command\Clear::class));
+		$this->assertSame(1, $command->execute([]));
+		$this->assertSame(1, $this->store->counts()['pending']);
+		$this->assertSame(0, $command->execute(['--yes' => true]));
+		$this->assertSame(0, array_sum($this->store->counts()));
+	}
+
 	public function testBackoffGrows(): void {
 		$this->assertSame([300, 1200, 4800, 19200], array_map(Indexer::backoff(...), [1, 2, 3, 4]));
 	}

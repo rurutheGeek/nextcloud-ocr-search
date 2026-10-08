@@ -10,8 +10,17 @@ permissions:
 
 jobs:
   app:
-    name: Nextcloud app
+    name: Nextcloud ${{ matrix.nextcloud }} on ${{ matrix.db }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {nextcloud: '33', db: sqlite}
+          - {nextcloud: '33', db: mysql}
+          - {nextcloud: '33', db: pgsql}
+          - {nextcloud: '34', db: sqlite}
+          - {nextcloud: '35', db: sqlite}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -24,8 +33,25 @@ jobs:
         run: git diff --exit-code js/ l10n/
       - name: XML schema sanity (well-formed)
         run: python3 -c "import xml.etree.ElementTree as ET; ET.parse('appinfo/info.xml')"
-      - name: PHP lint and tests inside Nextcloud 33
-        run: docker run --rm -v "$PWD":/app:ro nextcloud:33-apache sh /app/tests/run.sh
+      - name: Start the database
+        if: matrix.db != 'sqlite'
+        run: |
+          docker network create nc
+          if [ "${{ matrix.db }}" = mysql ]; then
+            docker run -d --name db --network nc -e MARIADB_DATABASE=nextcloud -e MARIADB_USER=nextcloud \
+              -e MARIADB_PASSWORD=nextcloud -e MARIADB_RANDOM_ROOT_PASSWORD=1 mariadb:11 \
+              --transaction-isolation=READ-COMMITTED
+          else
+            docker run -d --name db --network nc -e POSTGRES_DB=nextcloud -e POSTGRES_USER=nextcloud \
+              -e POSTGRES_PASSWORD=nextcloud postgres:17-alpine
+          fi
+          sleep 25
+      - name: PHP lint and tests inside Nextcloud
+        run: |
+          network=""
+          [ "${{ matrix.db }}" = sqlite ] || network="--network nc"
+          docker run --rm $network -e DB=${{ matrix.db }} -e DB_HOST=db -v "$PWD":/app:ro \
+            nextcloud:${{ matrix.nextcloud }}-apache sh /app/tests/run.sh
 
   server:
     name: OCR service
