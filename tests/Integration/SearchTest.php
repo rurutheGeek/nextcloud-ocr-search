@@ -56,10 +56,19 @@ class SearchTest extends AppTestCase {
 		$this->assertSame(['note.jpg'], $this->search('alice', 'ポケモンの力'));
 	}
 
+	public function testTextCopiedFromTheSidebarMatches(): void {
+		$this->index('alice', 'search', 'chat.jpg', ['おいおい、', '毎年', 'クリスマスで何', '万使ってるよ。', '上限は、', '1万']);
+		// Pasted into a one-line search field the line breaks are gone.
+		$this->assertSame(['chat.jpg'], $this->search('alice', 'おいおい、毎年クリスマスで何万使ってるよ。上限は、1万'));
+		$this->assertSame(['chat.jpg'], $this->search('alice', 'おいおい、 毎年 クリスマスで何'));
+		$this->assertSame(['chat.jpg'], $this->search('alice', '上限は1万'));
+	}
+
 	public function testLikeWildcardsAreLiteral(): void {
 		$this->index('alice', 'search', 'plain.jpg', ['nothing special']);
 		$this->assertSame([], $this->search('alice', '%'));
-		$this->assertSame([], $this->search('alice', '_othing'));
+		$this->assertSame([], $this->search('alice', 'n_thing'));
+		$this->assertSame([], $this->search('alice', 'n%l'));
 	}
 
 	public function testOtherUsersFilesAreNotFoundUntilShared(): void {

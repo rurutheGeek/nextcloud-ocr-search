@@ -56,7 +56,7 @@ OCRサービスはこのアプリのリポジトリの `server/` に `compose.ya
 プライバシー: 索引する画像は、管理者が設定したOCRサービスのURLへ送信されます。
 それ以外のデータは送信しません。
 ]]></description>
-	<version>0.1.0</version>
+	<version>0.1.1</version>
 	<licence>AGPL-3.0-or-later</licence>
 	<author>rurutheGeek</author>
 	<namespace>OcrSearch</namespace>
@@ -69,6 +69,11 @@ OCRサービスはこのアプリのリポジトリの `server/` に `compose.ya
 		<php min-version="8.1"/>
 		<nextcloud min-version="33" max-version="36"/>
 	</dependencies>
+	<repair-steps>
+		<post-migration>
+			<step>OCA\OcrSearch\Migration\Renormalize</step>
+		</post-migration>
+	</repair-steps>
 	<background-jobs>
 		<job>OCA\OcrSearch\BackgroundJob\ProcessQueue</job>
 	</background-jobs>

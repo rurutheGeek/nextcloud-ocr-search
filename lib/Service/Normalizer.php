@@ -12,10 +12,13 @@ namespace OCA\OcrSearch\Service;
  * most often on Japanese text: width and case differences, lost voicing marks
  * (ゲ read as ケ), old or Chinese forms of a kanji (內 for 内), and characters
  * that look the same in print (力 and カ).
+ *
+ * Whitespace and punctuation are dropped altogether. Recognition returns one
+ * entry per line of the picture, so where a line ends says nothing about the
+ * text, and punctuation is the part OCR gets wrong most often. A phrase copied
+ * from the recognised text therefore matches however it was wrapped.
  */
 class Normalizer {
-	private const CJK = '\p{Han}\p{Hiragana}\p{Katakana}ー';
-
 	/** @var array<string, string>|null */
 	private ?array $map = null;
 
@@ -28,10 +31,7 @@ class Normalizer {
 		$text = preg_replace('/\p{Mn}+/u', '', $text) ?? $text;
 		$text = mb_strtolower($text, 'UTF-8');
 		$text = strtr($text, $this->map());
-		$text = trim(preg_replace('/\s+/u', ' ', $text) ?? $text);
-		// Japanese has no word spacing, and a sentence often continues on the
-		// next recognised line.
-		return preg_replace('/(?<=[' . self::CJK . '])\s+(?=[' . self::CJK . '])/u', '', $text) ?? $text;
+		return preg_replace('/[\s\p{Z}\p{P}\p{C}]+/u', '', $text) ?? $text;
 	}
 
 	/**

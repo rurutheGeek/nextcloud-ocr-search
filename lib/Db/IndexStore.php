@@ -157,6 +157,41 @@ class IndexStore {
 			->executeStatement();
 	}
 
+	/**
+	 * Recomputes the searchable form of every recognised text.
+	 *
+	 * @param callable(string): string $normalize
+	 */
+	public function renormalize(callable $normalize): int {
+		$changed = 0;
+		$after = 0;
+		do {
+			$qb = $this->db->getQueryBuilder();
+			$result = $qb->select('file_id', 'text', 'normalized')->from(self::TABLE)
+				->where($qb->expr()->eq('status', $qb->createNamedParameter(self::DONE, IQueryBuilder::PARAM_INT)))
+				->andWhere($qb->expr()->gt('file_id', $qb->createNamedParameter($after, IQueryBuilder::PARAM_INT)))
+				->orderBy('file_id', 'ASC')
+				->setMaxResults(200)
+				->executeQuery();
+			$rows = $result->fetchAll();
+			$result->closeCursor();
+			foreach ($rows as $row) {
+				$after = (int)$row['file_id'];
+				$normalized = $normalize((string)$row['text']);
+				if ($normalized === (string)$row['normalized']) {
+					continue;
+				}
+				$update = $this->db->getQueryBuilder();
+				$update->update(self::TABLE)
+					->set('normalized', $update->createNamedParameter($normalized))
+					->where($update->expr()->eq('file_id', $update->createNamedParameter($after, IQueryBuilder::PARAM_INT)))
+					->executeStatement();
+				$changed++;
+			}
+		} while (count($rows) === 200);
+		return $changed;
+	}
+
 	public function retryFailed(): int {
 		$qb = $this->db->getQueryBuilder();
 		return $qb->update(self::TABLE)

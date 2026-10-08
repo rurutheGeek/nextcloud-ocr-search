@@ -77,6 +77,19 @@ class IndexerTest extends AppTestCase {
 		$this->assertSame(0, (int)$row['attempts']);
 	}
 
+	public function testUpgradeRenormalisesStoredText(): void {
+		$file = $this->image('alice', 'renorm');
+		$this->recognises(['おいおい、', '毎年']);
+		$this->indexer->process(0, 0, true);
+		$db = Server::get(IDBConnection::class);
+		$qb = $db->getQueryBuilder();
+		$qb->update(IndexStore::TABLE)->set('normalized', $qb->createNamedParameter('おいおい、 毎年'))
+			->where($qb->expr()->eq('file_id', $qb->createNamedParameter($file->getId())))->executeStatement();
+		$step = Server::get(\OCA\OcrSearch\Migration\Renormalize::class);
+		$step->run($this->createMock(\OCP\Migration\IOutput::class));
+		$this->assertSame('おいおい毎年', $this->store->get($file->getId())['normalized']);
+	}
+
 	public function testBackoffGrows(): void {
 		$this->assertSame([300, 1200, 4800, 19200], array_map(Indexer::backoff(...), [1, 2, 3, 4]));
 	}

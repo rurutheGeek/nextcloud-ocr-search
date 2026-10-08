@@ -35,8 +35,8 @@ unified search ──▶ LIKE on the normalised text ──▶ access check per 
   files wait, and no retry attempt is used up.
 - Recognised text is normalised before it is stored and searched: width and
   case, lost voicing marks (ゲ/ケ), old and Chinese forms of kanji (內/内) and
-  look-alikes (力/カ) are folded, and spaces between Japanese characters are
-  removed.
+  look-alikes (力/カ) are folded, and whitespace and punctuation are dropped,
+  so a phrase copied from the recognised text matches however it was wrapped.
 
 Measured on a 2-CPU, 1 GiB container with six real photos, longest side
 1024 px: 0.3–1.1 s per image, 359 MiB peak, about 160 MiB after the model is

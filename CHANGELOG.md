@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.1
+
+- Search ignores whitespace and punctuation, so a phrase copied from the
+  recognised text matches even where a line ended after a comma, a full stop
+  or a digit. Existing index entries are updated on upgrade; nothing has to be
+  recognised again.
+
 ## 0.1.0
 
 - Unified search provider for the text recognised in images.
