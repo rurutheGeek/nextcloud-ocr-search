@@ -3,6 +3,8 @@
 Find images by the text inside them — screenshots first of all, and also
 photos of notes, signs and documents — from the Nextcloud unified search.
 
+![Search results](screenshots/search.png)
+
 This repository contains two parts that belong together:
 
 | Directory | Part |
@@ -127,6 +129,8 @@ everything below it out of the index.
 
 Open the sidebar of an image in the Files app and choose the **Text** tab.
 
+![Recognised text in the sidebar](screenshots/sidebar.png)
+
 ## Removing the app
 
 Disabling or removing the app keeps the index, so enabling it again does not
@@ -137,6 +141,9 @@ occ ocr_search:clear --yes
 ```
 
 ## Development
+
+The screenshots are taken by the *Screenshots* workflow from a throwaway
+Nextcloud with invented sample pictures (`tools/screenshots/`).
 
 ```bash
 npm ci && npm run build                 # js/ocr_search.js and l10n/*.js

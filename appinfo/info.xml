@@ -65,9 +65,11 @@ OCRサービスはこのアプリのリポジトリの `server/` に `compose.ya
 	<website>https://github.com/rurutheGeek/nextcloud-ocr-search</website>
 	<bugs>https://github.com/rurutheGeek/nextcloud-ocr-search/issues</bugs>
 	<repository>https://github.com/rurutheGeek/nextcloud-ocr-search</repository>
+	<screenshot>https://raw.githubusercontent.com/rurutheGeek/nextcloud-ocr-search/main/screenshots/search.png</screenshot>
+	<screenshot>https://raw.githubusercontent.com/rurutheGeek/nextcloud-ocr-search/main/screenshots/sidebar.png</screenshot>
 	<dependencies>
 		<php min-version="8.1"/>
-		<nextcloud min-version="33" max-version="36"/>
+		<nextcloud min-version="33" max-version="35"/>
 	</dependencies>
 	<repair-steps>
 		<post-migration>
