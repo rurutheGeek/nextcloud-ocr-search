@@ -1,0 +1,61 @@
+name: Screenshots
+
+# Regenerates the App Store screenshots from a throwaway Nextcloud with
+# invented sample pictures. Run it by hand and commit the artifact to
+# screenshots/.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  screenshots:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Tools
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq fonts-dejavu-core
+          pip install -q pillow playwright
+          playwright install --with-deps chromium
+      - name: Sample pictures
+        run: mkdir -p samples out && python tools/screenshots/samples.py samples
+      - name: Nextcloud with the app and the OCR service
+        run: |
+          password="Shot-$(openssl rand -hex 12)"
+          token="$(openssl rand -hex 24)"
+          echo "::add-mask::$password"
+          echo "SHOT_PASSWORD=$password" >> "$GITHUB_ENV"
+          docker build -q -t ocr-search-service:shot server/
+          docker network create shot
+          docker run -d --name ocr --network shot -e OCR_TOKEN="$token" ocr-search-service:shot
+          docker run -d --name nc --network shot -p 8080:80 -e SQLITE_DATABASE=nc \
+            -e NEXTCLOUD_ADMIN_USER=demo -e NEXTCLOUD_ADMIN_PASSWORD="$password" \
+            -e NEXTCLOUD_TRUSTED_DOMAINS="localhost localhost:8080" \
+            -v "$PWD":/app:ro -v "$PWD/samples":/samples:ro nextcloud:33-apache
+          occ() { docker exec --user 33:33 nc php occ "$@"; }
+          for _ in $(seq 60); do occ status 2>/dev/null | grep -q 'installed: true' && break; sleep 5; done
+          docker exec nc sh -c 'mkdir -p custom_apps/ocr_search && cd /app \
+            && tar -cf - appinfo img js l10n lib templates | tar -xf - -C /var/www/html/custom_apps/ocr_search \
+            && rm -rf /var/www/html/data/demo/files/* && mkdir -p /var/www/html/data/demo/files/Screenshots \
+            && cp /samples/* /var/www/html/data/demo/files/Screenshots/ \
+            && chown -R www-data:www-data /var/www/html/custom_apps/ocr_search /var/www/html/data/demo'
+          occ app:enable ocr_search
+          occ app:disable firstrunwizard || true
+          occ config:app:set ocr_search ocr_url --value=http://ocr:8080
+          occ config:app:set ocr_search ocr_token --value="$token" --sensitive >/dev/null
+          occ files:scan demo
+          occ ocr_search:index
+          occ ocr_search:process -v
+      - name: Take the screenshots
+        run: python tools/screenshots/shoot.py out
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: screenshots
+          path: out/
