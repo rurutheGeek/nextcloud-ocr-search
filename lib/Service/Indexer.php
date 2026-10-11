@@ -142,19 +142,25 @@ class Indexer {
 		$etag = $file->getEtag();
 		try {
 			$result = $this->client->recognise($file->getContent(), $file->getMimetype());
+		} catch (OcrTooLarge $e) {
+			$this->store->finish($fileId, $item['claim'], [
+				'status' => IndexStore::SKIPPED, 'etag' => $etag, 'last_error' => mb_substr($e->getMessage(), 0, 1000),
+				'text' => null, 'normalized' => null, 'lines' => null, 'next_attempt' => 0,
+			]);
+			return ['skipped', $e->getMessage()];
+		} catch (OcrConnectionLost $e) {
+			// The service is either down or it died on this very image. If it
+			// is back a moment later, the image is to blame: count the
+			// attempt, or the same image would stop every run at this point.
+			if (!$this->client->recovers()) {
+				throw $e;
+			}
+			return $this->retryLater($item, 'The OCR service stopped while processing this image');
 		} catch (OcrUnavailable $e) {
 			throw $e;
 		} catch (\Throwable $e) {
 			// Unreadable storage or an image the service refuses.
-			$attempts = $item['attempts'] + 1;
-			$final = $attempts >= self::MAX_ATTEMPTS;
-			$this->store->finish($fileId, $item['claim'], [
-				'status' => $final ? IndexStore::FAILED : IndexStore::PENDING,
-				'attempts' => $attempts,
-				'next_attempt' => $final ? 0 : time() + self::backoff($attempts),
-				'last_error' => mb_substr($e->getMessage(), 0, 1000),
-			]);
-			return [$final ? 'failed' : 'retry', $e->getMessage()];
+			return $this->retryLater($item, $e->getMessage());
 		}
 		$text = implode("\n", array_filter(array_map(
 			static fn (array $line): string => trim((string)($line['text'] ?? '')),
@@ -173,6 +179,22 @@ class Indexer {
 			'height' => $result['height'],
 		]);
 		return ['done', (string)count($result['lines'])];
+	}
+
+	/**
+	 * @param array{file_id: int, attempts: int, claim: int} $item
+	 * @return array{0: string, 1: string}
+	 */
+	private function retryLater(array $item, string $error): array {
+		$attempts = $item['attempts'] + 1;
+		$final = $attempts >= self::MAX_ATTEMPTS;
+		$this->store->finish($item['file_id'], $item['claim'], [
+			'status' => $final ? IndexStore::FAILED : IndexStore::PENDING,
+			'attempts' => $attempts,
+			'next_attempt' => $final ? 0 : time() + self::backoff($attempts),
+			'last_error' => mb_substr($error, 0, 1000),
+		]);
+		return [$final ? 'failed' : 'retry', $error];
 	}
 
 	/** 5 min, 20 min, 80 min, 5 h 20 min. */

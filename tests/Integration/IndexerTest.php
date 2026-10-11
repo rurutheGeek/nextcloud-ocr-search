@@ -6,7 +6,9 @@ namespace OCA\OcrSearch\Tests\Integration;
 
 use OCA\OcrSearch\Db\IndexStore;
 use OCA\OcrSearch\Service\Indexer;
+use OCA\OcrSearch\Service\OcrConnectionLost;
 use OCA\OcrSearch\Service\OcrRejected;
+use OCA\OcrSearch\Service\OcrTooLarge;
 use OCA\OcrSearch\Service\OcrUnavailable;
 use OCP\IDBConnection;
 use OCP\Server;
@@ -51,6 +53,47 @@ class IndexerTest extends AppTestCase {
 			$this->assertSame(0, (int)$row['attempts']);
 			$this->assertSame(0, (int)$row['next_attempt']);
 		}
+	}
+
+	public function testServiceThatIsDownCostsNoAttempt(): void {
+		$file = $this->image('alice', 'lost');
+		$this->client->method('recognise')->willThrowException(new OcrConnectionLost('connection refused'));
+		$this->client->method('recovers')->willReturn(false);
+		$this->assertSame('connection refused', $this->indexer->process(0, 0, true)['unavailable']);
+		$this->assertSame(0, (int)$this->store->get($file->getId())['attempts']);
+	}
+
+	public function testImageThatKillsTheServiceDoesNotBlockTheQueue(): void {
+		$poison = $this->image('alice', 'poison', 'a.jpg');
+		$good = $this->image('alice', 'poison', 'b.jpg');
+		$calls = 0;
+		$this->client->method('recognise')->willReturnCallback(function () use (&$calls) {
+			if (++$calls === 1) {
+				throw new OcrConnectionLost('Empty reply from server');
+			}
+			return ['width' => 1, 'height' => 1, 'lines' => [['text' => 'fine', 'box' => [], 'score' => 1.0]]];
+		});
+		// The service restarted and answers again.
+		$this->client->method('recovers')->willReturn(true);
+		$stats = $this->indexer->process(0, 0, true);
+		$this->assertNull($stats['unavailable']);
+		$this->assertSame(1, $stats['retry']);
+		$this->assertSame(1, $stats['done']);
+		$row = $this->store->get($poison->getId());
+		$this->assertSame(1, (int)$row['attempts']);
+		$this->assertGreaterThan(time(), (int)$row['next_attempt']);
+		$this->assertSame(IndexStore::DONE, (int)$this->store->get($good->getId())['status']);
+	}
+
+	public function testImageBeyondTheServiceLimitsIsSkippedAtOnce(): void {
+		$file = $this->image('alice', 'huge');
+		$this->client->expects($this->once())->method('recognise')
+			->willThrowException(new OcrTooLarge('image has too many pixels'));
+		$this->assertSame(1, $this->indexer->process(0, 0, true)['skipped']);
+		$row = $this->store->get($file->getId());
+		$this->assertSame(IndexStore::SKIPPED, (int)$row['status']);
+		$this->assertSame('image has too many pixels', $row['last_error']);
+		$this->assertSame(0, (int)$row['attempts']);
 	}
 
 	public function testRejectedImageBacksOffAndFailsAfterFiveAttempts(): void {

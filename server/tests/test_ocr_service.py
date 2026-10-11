@@ -7,6 +7,7 @@ import tempfile
 import threading
 import time
 import unittest
+import unittest.mock
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -185,8 +186,29 @@ class HttpTests(ServiceCase):
         self.assertIn('error', body)
         self.assertEqual(self.tracker['built'], 0)
 
-    def test_too_many_pixels_is_422(self):
-        self.assertEqual(self.post(png(1100, 1000))[0], 422)
+    def test_too_many_pixels_is_413(self):
+        # Not 422: retrying this file can never help.
+        self.assertEqual(self.post(png(1100, 1000))[0], 413)
+
+    def test_a_large_jpeg_is_decoded_at_reduced_size(self):
+        buffer = io.BytesIO()
+        Image.new('RGB', (2400, 1000), 'white').save(buffer, 'JPEG')  # 2.4 MP, limit 1 MP
+        status, body, _ = self.post(buffer.getvalue())
+        self.assertEqual(status, 200)
+        self.assertEqual((body['width'], body['height']), (2400, 1000))
+        self.assertLessEqual(max(self.tracker['shapes'][-1][:2]), 1024)
+
+    def test_the_model_is_reloaded_when_the_process_has_grown(self):
+        self.server.service.max_rss_mib = 500
+        with unittest.mock.patch.object(svc, 'rss_mib', return_value=400):
+            self.post(png(50, 50))
+            self.post(png(50, 50))
+        self.assertEqual(self.tracker['built'], 1)
+        with unittest.mock.patch.object(svc, 'rss_mib', return_value=501):
+            self.assertEqual(self.post(png(50, 50))[0], 200)
+        self.assertIsNone(self.server.service.engine)
+        self.post(png(50, 50))
+        self.assertEqual(self.tracker['built'], 2)
 
     def test_max_side_is_clamped(self):
         self.post(png(5000, 100), '?max_side=100000')
@@ -250,7 +272,8 @@ class ConfigTests(unittest.TestCase):
                           config['idle_seconds'], config['threads']),
                          (8080, 1024, 300, 2))
         self.assertEqual(config['max_bytes'], 52428800)
-        self.assertEqual(config['max_pixels'], 100000000)
+        self.assertEqual(config['max_pixels'], 40000000)
+        self.assertEqual(config['max_rss_mib'], 600)
 
     def test_refuses_to_start_without_a_token(self):
         with self.assertRaises(SystemExit):

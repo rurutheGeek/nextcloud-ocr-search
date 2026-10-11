@@ -56,7 +56,7 @@ OCRサービスはこのアプリのリポジトリの `server/` に `compose.ya
 プライバシー: 索引する画像は、管理者が設定したOCRサービスのURLへ送信されます。
 それ以外のデータは送信しません。
 ]]></description>
-	<version>1.0.0</version>
+	<version>1.0.1</version>
 	<licence>AGPL-3.0-or-later</licence>
 	<author>rurutheGeek</author>
 	<namespace>OcrSearch</namespace>

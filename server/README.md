@@ -29,8 +29,8 @@ without text gives `"lines": []`.
 | --- | --- |
 | 401 | Missing or wrong token |
 | 411 | No `Content-Length` |
-| 413 | Body larger than `OCR_MAX_BYTES` |
-| 422 | Not a decodable image, or more than `OCR_MAX_PIXELS` pixels (this file is bad) |
+| 413 | Body larger than `OCR_MAX_BYTES`, or more than `OCR_MAX_PIXELS` pixels to decode (this file will never work) |
+| 422 | Not a decodable image (this file is bad) |
 | 503 | Engine failed to load or crashed (e.g. out of memory, model files missing); has `Retry-After` (service unavailable, not the file's fault) |
 
 Error bodies: `{"error": "<message>"}`.
@@ -47,7 +47,8 @@ Error bodies: `{"error": "<message>"}`.
 | `OCR_THREADS` | `2` | ONNX Runtime intra-op threads |
 | `OCR_IDLE_SECONDS` | `300` | Unload the model after this idle time; `0` never unloads |
 | `OCR_MAX_BYTES` | `52428800` | Request body limit |
-| `OCR_MAX_PIXELS` | `100000000` | Decoded image limit |
+| `OCR_MAX_PIXELS` | `40000000` | Limit on the pixels held in memory (a JPEG is decoded at reduced size, so larger JPEGs pass) |
+| `OCR_MAX_RSS_MIB` | `600` | Reload the model when the process grows past this (`0` = never) |
 
 The model loads on the first OCR request. One recognition runs at a time;
 other requests wait. Each request logs one line (method, path, status,

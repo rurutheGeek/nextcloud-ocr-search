@@ -14,7 +14,8 @@ Environment:
   OCR_IDLE_SECONDS    unload the model after this idle time, default 300
                       (0 = never unload)
   OCR_MAX_BYTES       request body limit, default 50 MiB
-  OCR_MAX_PIXELS      decoded image limit, default 100000000
+  OCR_MAX_PIXELS      decoded image limit, default 40000000
+  OCR_MAX_RSS_MIB     reload the model when the process grows past this, default 600
 """
 import ctypes
 import gc
@@ -46,6 +47,10 @@ except ImportError:
 
 class ImageError(Exception):
     """The request image is unusable (maps to 422)."""
+
+
+class ImageTooLarge(ImageError):
+    """The image can never be processed with the configured limits."""
 
 
 class EngineError(Exception):
@@ -85,12 +90,18 @@ def clamp_side(value, default):
 def load_image(data, max_side, max_pixels):
     """Decode to RGB. Returns (image, width, height); width/height are the
     EXIF-oriented dimensions before downscaling."""
-    Image.MAX_IMAGE_PIXELS = max_pixels
+    # The limit is applied below, to the size that is actually decoded.
+    Image.MAX_IMAGE_PIXELS = None
     try:
         image = Image.open(io.BytesIO(data))
         width, height = image.size
-        if width * height > max_pixels:
-            raise ImageError('image has too many pixels')
+        # A JPEG can be decoded at a fraction of its size, so a large scan is
+        # fine; what counts is the number of pixels that end up in memory.
+        scale = max_side / max(width, height)
+        if scale < 1:
+            image.draft('RGB', (max(1, int(width * scale)), max(1, int(height * scale))))
+        if image.width * image.height > max_pixels:
+            raise ImageTooLarge('image has too many pixels')
         if image.getexif().get(ORIENTATION_TAG) in (5, 6, 7, 8):
             width, height = height, width
         # Downscale before orientation so JPEG draft mode saves memory.
@@ -104,6 +115,15 @@ def load_image(data, max_side, max_pixels):
     return image, width, height
 
 
+def rss_mib():
+    """Resident memory of this process; 0 where /proc is not available."""
+    try:
+        with open('/proc/self/statm') as handle:
+            return int(handle.read().split()[1]) * os.sysconf('SC_PAGE_SIZE') // 2**20
+    except (OSError, ValueError, IndexError):
+        return 0
+
+
 def scale_box(box, sx, sy, width, height):
     return [[max(0, min(width, round(float(x) * sx))),
              max(0, min(height, round(float(y) * sy)))] for x, y in box]
@@ -113,12 +133,13 @@ class OcrService:
     """Lazy engine holder: one recognition at a time, unload when idle."""
 
     def __init__(self, factory, threads, max_side, idle_seconds,
-                 max_pixels):
+                 max_pixels, max_rss_mib=0):
         self.factory = factory
         self.threads = threads
         self.max_side = max_side
         self.idle_seconds = idle_seconds
         self.max_pixels = max_pixels
+        self.max_rss_mib = max_rss_mib
         self.engine = None
         self.last_used = time.monotonic()
         self.lock = threading.Lock()
@@ -167,6 +188,12 @@ class OcrService:
                         'text': text,
                         'box': scale_box(box, sx, sy, width, height),
                         'score': round(float(score), 4)})
+            # Memory creeps up over a long run of pictures (about 0.3 MiB each
+            # in measurements). Reloading the model gives it back and costs
+            # half a second on the next request.
+            if self.max_rss_mib and rss_mib() > self.max_rss_mib:
+                del result, image
+                self._unload()
             return {'width': width, 'height': height, 'lines': lines,
                     'engine': ENGINE_NAME,
                     'seconds': round(time.monotonic() - started, 3)}
@@ -204,7 +231,8 @@ def load_config(env):
         'threads': max(1, number('OCR_THREADS', 2)),
         'idle_seconds': max(0, number('OCR_IDLE_SECONDS', 300)),
         'max_bytes': number('OCR_MAX_BYTES', 52428800),
-        'max_pixels': number('OCR_MAX_PIXELS', 100000000),
+        'max_pixels': number('OCR_MAX_PIXELS', 40000000),
+        'max_rss_mib': max(0, number('OCR_MAX_RSS_MIB', 600)),
     }
 
 
@@ -263,6 +291,8 @@ def make_handler(service, token, max_bytes):
             side = clamp_side(raw, service.max_side) if raw else None
             try:
                 result = service.recognise(data, side)
+            except ImageTooLarge as error:
+                return self._error(413, str(error))
             except ImageError as error:
                 return self._error(422, str(error))
             except EngineError as error:
@@ -275,7 +305,8 @@ def make_handler(service, token, max_bytes):
 
 def make_server(config, factory=create_engine):
     service = OcrService(factory, config['threads'], config['max_side'],
-                         config['idle_seconds'], config['max_pixels'])
+                         config['idle_seconds'], config['max_pixels'],
+                         config.get('max_rss_mib', 0))
     handler = make_handler(service, config['token'], config['max_bytes'])
     server = ThreadingHTTPServer((config['bind'], config['port']), handler)
     server.daemon_threads = True

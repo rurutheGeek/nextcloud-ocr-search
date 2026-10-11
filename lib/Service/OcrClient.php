@@ -16,8 +16,10 @@ class OcrClient {
 
 	/**
 	 * @return array{width: int, height: int, lines: list<array{text: string, box: array, score: float}>}
-	 * @throws OcrUnavailable the service is down, misconfigured or overloaded
+	 * @throws OcrUnavailable the service is misconfigured or overloaded
+	 * @throws OcrConnectionLost the service did not answer at all
 	 * @throws OcrRejected the service cannot read this image
+	 * @throws OcrTooLarge the image is beyond the limits of the service
 	 */
 	public function recognise(string $image, string $mimeType): array {
 		if (!$this->settings->configured()) {
@@ -38,12 +40,13 @@ class OcrClient {
 				],
 			);
 		} catch (\Throwable $e) {
-			throw new OcrUnavailable($e->getMessage(), 0, $e);
+			throw new OcrConnectionLost($e->getMessage(), 0, $e);
 		}
 		$status = $response->getStatusCode();
 		$data = json_decode((string)$response->getBody(), true);
 		if (in_array($status, [400, 413, 415, 422], true)) {
-			throw new OcrRejected(is_array($data) ? (string)($data['error'] ?? "HTTP $status") : "HTTP $status");
+			$message = is_array($data) ? (string)($data['error'] ?? "HTTP $status") : "HTTP $status";
+			throw $status === 413 ? new OcrTooLarge($message) : new OcrRejected($message);
 		}
 		if ($status !== 200 || !is_array($data) || !is_array($data['lines'] ?? null)) {
 			throw new OcrUnavailable("The OCR service answered HTTP $status");
@@ -53,6 +56,17 @@ class OcrClient {
 			'height' => (int)($data['height'] ?? 0),
 			'lines' => array_values($data['lines']),
 		];
+	}
+
+	/** Gives a service that is restarting a moment to come back. */
+	public function recovers(int $seconds = 30): bool {
+		for ($waited = 0; $waited <= $seconds; $waited += 3) {
+			if ($this->healthy()) {
+				return true;
+			}
+			sleep(3);
+		}
+		return false;
 	}
 
 	public function healthy(): bool {

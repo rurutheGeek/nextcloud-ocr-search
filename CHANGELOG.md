@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.1
+
+- OCR service: memory no longer grows over a long indexing run; the model is
+  reloaded when the process passes `OCR_MAX_RSS_MIB` (default 600).
+- OCR service: large JPEG scans are decoded at reduced size instead of being
+  refused; the pixel limit applies to what is held in memory (default 40 MP).
+- An image that is beyond the limits of the service is skipped at once
+  instead of being retried five times.
+- An image that makes the service stop no longer blocks the rest of the queue.
+
 ## 1.0.0
 
 - First release in the Nextcloud App Store.
