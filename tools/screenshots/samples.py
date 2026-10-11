@@ -2,6 +2,7 @@
 import sys
 
 from PIL import Image, ImageDraw, ImageFont
+
 F = '/usr/share/fonts/truetype/dejavu/'
 def font(size, bold=False): return ImageFont.truetype(F + ('DejaVuSans-Bold.ttf' if bold else 'DejaVuSans.ttf'), size)
 def chat():
